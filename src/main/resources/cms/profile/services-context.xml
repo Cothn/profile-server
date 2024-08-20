@@ -1,0 +1,321 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright (C) 2007-2022 CMS Software Corporation. All Rights Reserved.
+  ~
+  ~ This program is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License version 3 as published by
+  ~ the Free Software Foundation.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU General Public License
+  ~ along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  -->
+
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xmlns:task="http://www.springframework.org/schema/task"
+       xsi:schemaLocation="
+       http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+       http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd
+       http://www.springframework.org/schema/task http://www.springframework.org/schema/task/spring-task.xsd">
+
+    <!--
+    Activates various annotations to be detected in bean classes: Spring's @Required and @Autowired, as well as JSR
+    250's and @Resource (if available), JAX-WS's @WebServiceRef (if available), EJB3's @EJB
+    (if available), and JPA's @PersistenceContext and @PersistenceUnit (if available).
+    -->
+    <context:annotation-config/>
+
+    <aop:aspectj-autoproxy/>
+
+    <task:annotation-driven executor="taskExecutor"/>
+    <task:executor id="taskExecutor" pool-size="${cms.profile.task.executor.poolSize}"
+                   queue-capacity="${cms.profile.task.executor.queueCapacity}"/>
+
+    <bean id="cms.loggedAspect" class="ru.dc.cms.commons.logging.LoggedAspect"/>
+
+    <bean name="cms.profileProperties"
+          class="org.springframework.context.support.PropertySourcesPlaceholderConfigurer">
+        <property name="ignoreUnresolvablePlaceholders" value="true"/>
+        <!-- <property name="ignoreResourceNotFound" value="true"/> -->
+        <property name="locations">
+            <list>
+                <value>classpath:cms/profile/server-config.properties</value>
+                <value>classpath*:cms/profile/extension/server-config.properties</value>
+            </list>
+        </property>
+    </bean>
+
+    <!-- Mongo -->
+
+    <!--<bean id="cms.mongoClientOptionsFactory" class="ru.dc.cms.commons.mongo.MongoClientOptionsFactory">-->
+    <!--<property name="autoConnectRetry" value="${cms.profile.mongodb.connection.autoConnectRetry}"/>-->
+    <!--<property name="connectionsPerHost" value="${cms.profile.mongodb.connection.connectionsPerHost}"/>-->
+    <!--<property name="maxAutoConnectRetryTime" value="${cms.profile.mongodb.connection.maxWaitTime}"/>-->
+    <!--<property name="socketKeepAlive" value="${cms.profile.mongodb.connection.socketKeepAlive}"/>-->
+    <!--<property name="threadsAllowedToBlockForConnectionMultiplier"-->
+    <!--value="${cms.profile.mongodb.connection.threadsAllowedToBlockForConnectionMultiplier}"/>-->
+    <!--<property name="connectTimeout" value="${cms.profile.mongodb.connection.connectTimeout}"/>-->
+    <!--<property name="writeConcern" value="${cms.profile.mongodb.connection.writeConcern}"/>-->
+    <!--<property name="readPreference" value="${cms.profile.mongodb.connection.readPreference}"/>-->
+    <!--</bean>-->
+
+
+    <!--<bean id="cms.profile.mongoClient" class="ru.dc.cms.commons.mongo.MongoClientFactory">-->
+    <!--<property name="connectionString" value="${cms.profile.mongodb.connection.connectionStr}"/>-->
+    <!--<property name="options" ref="cms.mongoClientOptionsFactory"/>-->
+    <!--</bean>-->
+
+    <bean id="cms.profile.mongoClient" class="ru.dc.cms.commons.mongo.MongoClientFromUriFactoryBean">
+        <property name="uri" value="${cms.profile.mongodb.connection.newConnectionStr}"/>
+    </bean>
+
+    <bean id="cms.jongo" class="ru.dc.cms.commons.mongo.JongoFactoryBean">
+        <property name="mongo" ref="cms.profile.mongoClient"/>
+        <property name="username" value="${cms.profile.mongodb.connection.dbUsername}"/>
+        <property name="password" value="${cms.profile.mongodb.connection.dbPassword}"/>
+        <property name="dbName" value="${cms.profile.mongodb.connection.dbName}"/>
+    </bean>
+
+    <bean id="cms.jongoQueries" class="ru.dc.cms.commons.mongo.JongoQueries" init-method="init">
+        <property name="resources">
+            <list>
+                <value>classpath:/cms/profile/access-token-manager-queries.xml</value>
+                <value>classpath:/cms/profile/profile-queries.xml</value>
+                <value>classpath:/cms/profile/extension/profile-queries.xml</value>
+            </list>
+        </property>
+    </bean>
+
+    <bean id="cms.jongoRepositoryBase" class="ru.dc.cms.commons.mongo.AbstractJongoRepository"
+          init-method="init" abstract="true">
+        <property name="jongo" ref="cms.jongo"/>
+        <property name="queries" ref="cms.jongoQueries"/>
+    </bean>
+
+    <bean id="cms.accessTokenRepository" class="ru.dc.cms.profile.repositories.impl.AccessTokenRepositoryImpl"
+          parent="cms.jongoRepositoryBase"/>
+
+    <bean id="cms.profileRepository" class="ru.dc.cms.profile.repositories.impl.ProfileRepositoryImpl"
+          parent="cms.jongoRepositoryBase"/>
+
+    <bean id="cms.tenantRepository" class="ru.dc.cms.profile.repositories.impl.TenantRepositoryImpl"
+          parent="cms.jongoRepositoryBase"/>
+
+    <bean id="cms.ticketRepository" class="ru.dc.cms.profile.repositories.impl.TicketRepositoryImpl"
+          parent="cms.jongoRepositoryBase"/>
+
+    <bean id="cms.verificationTokenRepository"
+          class="ru.dc.cms.profile.repositories.impl.VerificationTokenRepositoryImpl"
+          parent="cms.jongoRepositoryBase"/>
+
+    <bean id="cms.persistentLoginRepository"
+          class="ru.dc.cms.profile.repositories.impl.PersistentLoginRepositoryImpl"
+          parent="cms.jongoRepositoryBase"/>
+
+    <bean id="cms.mongoInitScriptRunner" class="ru.dc.cms.commons.mongo.MongoScriptRunner">
+        <property name="mongo" ref="cms.profile.mongoClient"/>
+        <property name="dbName" value="${cms.profile.mongodb.connection.dbName}"/>
+        <property name="username" value="${cms.profile.mongodb.connection.dbUsername}"/>
+        <property name="password" value="${cms.profile.mongodb.connection.dbPassword}"/>
+        <property name="runOnInit" value="${cms.profile.mongodb.scripts.runOnInit}"/>
+        <property name="mongoClientBin" value="${cms.profile.mongodb.connection.scriptRunner.clientPath}"/>
+        <property name="connectionStr" value="${cms.profile.mongodb.connection.newConnectionStr}"/>
+        <property name="useMongoClient" value="${cms.profile.mongodb.connection.scriptRunner.withClient}"/>
+        <property name="scriptPaths">
+            <bean class="org.apache.commons.lang3.StringUtils" factory-method="split">
+                <constructor-arg index="0" value="${cms.profile.mongodb.scripts.paths}"/>
+                <constructor-arg index="1" value=","/>
+            </bean>
+        </property>
+    </bean>
+    <!-- Mail -->
+
+    <bean id="cms.mailSender" class="org.springframework.mail.javamail.JavaMailSenderImpl">
+        <property name="host" value="${cms.profile.mail.host}"/>
+        <property name="port" value="${cms.profile.mail.port}"/>
+        <property name="protocol" value="${cms.profile.mail.protocol}"/>
+        <property name="username" value="${cms.profile.mail.username}"/>
+        <property name="password" value="${cms.profile.mail.password}"/>
+        <property name="defaultEncoding" value="${cms.profile.mail.encoding}"/>
+        <property name="javaMailProperties">
+            <props>
+                <prop key="mail.smtp.auth">${cms.profile.mail.smtp.auth}</prop>
+                <prop key="mail.smtp.starttls.enable">${cms.profile.mail.smtp.starttls.enable}</prop>
+            </props>
+        </property>
+    </bean>
+
+    <bean id="cms.mailFreeMarkerConfig"
+          class="org.springframework.ui.freemarker.FreeMarkerConfigurationFactoryBean">
+        <property name="templateLoaderPaths" value="${cms.profile.mail.templates.path}"/>
+        <property name="defaultEncoding" value="${cms.profile.mail.encoding}"/>
+    </bean>
+
+    <bean id="cms.emailFactory" class="ru.dc.cms.commons.mail.impl.EmailFactoryImpl">
+        <property name="mailSender" ref="cms.mailSender"/>
+        <property name="freeMarkerConfig" ref="cms.mailFreeMarkerConfig"/>
+        <property name="templateEncoding" value="${cms.profile.mail.encoding}"/>
+    </bean>
+
+    <!-- Permissions -->
+
+    <bean id="cms.accessTokenSubjectResolver" class="ru.dc.cms.profile.permissions.AccessTokenSubjectResolver"/>
+
+    <bean id="cms.tenantPermissionResolver" class="ru.dc.cms.profile.permissions.TenantPermissionResolver"/>
+
+    <bean id="cms.attributePermissionResolver"
+          class="ru.dc.cms.profile.permissions.AttributePermissionResolver"/>
+
+    <bean id="cms.tenantPermissionEvaluator"
+          class="ru.dc.cms.commons.security.permissions.impl.PermissionEvaluatorImpl">
+        <property name="subjectResolver" ref="cms.accessTokenSubjectResolver"/>
+        <property name="permissionResolver" ref="cms.tenantPermissionResolver"/>
+    </bean>
+
+    <bean id="cms.attributePermissionEvaluator"
+          class="ru.dc.cms.commons.security.permissions.impl.PermissionEvaluatorImpl">
+        <property name="subjectResolver" ref="cms.accessTokenSubjectResolver"/>
+        <property name="permissionResolver" ref="cms.attributePermissionResolver"/>
+    </bean>
+
+    <!-- Services -->
+
+    <bean id="cms.accessTokenService" class="ru.dc.cms.profile.services.impl.AccessTokenServiceImpl">
+        <property name="accessTokenRepository" ref="cms.accessTokenRepository"/>
+    </bean>
+
+    <bean id="cms.verificationService" class="ru.dc.cms.profile.services.impl.VerificationServiceImpl">
+        <property name="permissionEvaluator" ref="cms.tenantPermissionEvaluator"/>
+        <property name="emailFactory" ref="cms.emailFactory"/>
+        <property name="tokenRepository" ref="cms.verificationTokenRepository"/>
+        <property name="tokenMaxAge" value="${cms.profile.verification.token.maxAge}"/>
+    </bean>
+
+    <bean id="cms.tenantService" class="ru.dc.cms.profile.services.impl.TenantServiceImpl">
+        <property name="tenantPermissionEvaluator" ref="cms.tenantPermissionEvaluator"/>
+        <property name="attributePermissionEvaluator" ref="cms.attributePermissionEvaluator"/>
+        <property name="tenantRepository" ref="cms.tenantRepository"/>
+        <property name="profileRepository" ref="cms.profileRepository"/>
+        <property name="profileService" ref="cms.profileService"/>
+        <property name="entitlementValidator" ref="cms.entitlementValidator"/>
+    </bean>
+
+    <bean id="cms.profileService" class="ru.dc.cms.profile.services.impl.ProfileServiceImpl">
+        <property name="tenantPermissionEvaluator" ref="cms.tenantPermissionEvaluator"/>
+        <property name="attributePermissionEvaluator" ref="cms.attributePermissionEvaluator"/>
+        <property name="profileRepository" ref="cms.profileRepository"/>
+        <property name="tenantService" ref="cms.tenantService"/>
+        <property name="authenticationService" ref="cms.authenticationService"/>
+        <property name="verificationService" ref="cms.verificationService"/>
+        <property name="newProfileEmailFromAddress" value="${cms.profile.verification.newProfile.mail.from}"/>
+        <property name="newProfileEmailSubject" value="${cms.profile.verification.newProfile.mail.subject}"/>
+        <property name="newProfileEmailTemplateName" value="${cms.profile.verification.newProfile.mail.templateName}"/>
+        <property name="resetPwdEmailFromAddress" value="${cms.profile.verification.resetPassword.mail.from}"/>
+        <property name="resetPwdEmailSubject" value="${cms.profile.verification.resetPassword.mail.subject}"/>
+        <property name="resetPwdEmailTemplateName" value="${cms.profile.verification.resetPassword.mail.templateName}"/>
+        <property name="validAttachmentMimeTypes" value="${cms.profile.attachments.validMimeTypes}"/>
+        <property name="entitlementValidator" ref="cms.entitlementValidator"/>
+    </bean>
+
+    <bean id="cms.authenticationService" class="ru.dc.cms.profile.services.impl.AuthenticationServiceImpl">
+        <property name="ticketRepository" ref="cms.ticketRepository"/>
+        <property name="profileService" ref="cms.profileService"/>
+        <property name="permissionEvaluator" ref="cms.tenantPermissionEvaluator"/>
+        <property name="persistentLoginRepository" ref="cms.persistentLoginRepository"/>
+        <property name="lockTime" value="${cms.profile.auth.lockTime}"/>
+        <property name="failedLoginAttemptsBeforeLock" value="${cms.profile.auth.failedLoginAttemptsBeforeLock}"/>
+        <property name="failedLoginAttemptsBeforeDelay" value="${cms.profile.auth.failedLoginAttemptsBeforeDelay}"/>
+    </bean>
+
+    <!-- Quartz -->
+
+    <bean id="cms.ticketCleanerJobDetail"
+          class="org.springframework.scheduling.quartz.MethodInvokingJobDetailFactoryBean">
+        <property name="targetBeanName" value="cms.ticketRepository"/>
+        <property name="targetMethod" value="removeWithLastRequestTimeOlderThan"/>
+        <property name="arguments">
+            <array>
+                <value>${cms.profile.auth.ticket.maxAge}</value>
+            </array>
+        </property>
+        <property name="concurrent" value="false"/>
+    </bean>
+
+    <bean id="cms.verificationTokenCleanerJobDetail"
+          class="org.springframework.scheduling.quartz.MethodInvokingJobDetailFactoryBean">
+        <property name="targetBeanName" value="cms.verificationTokenRepository"/>
+        <property name="targetMethod" value="removeOlderThan"/>
+        <property name="arguments">
+            <array>
+                <value>${cms.profile.verification.token.maxAge}</value>
+            </array>
+        </property>
+        <property name="concurrent" value="false"/>
+    </bean>
+
+    <bean id="cms.persistentLoginCleanerJobDetail"
+          class="org.springframework.scheduling.quartz.MethodInvokingJobDetailFactoryBean">
+        <property name="targetBeanName" value="cms.persistentLoginRepository"/>
+        <property name="targetMethod" value="removeOlderThan"/>
+        <property name="arguments">
+            <array>
+                <value>${cms.profile.persistentLogin.maxAge}</value>
+            </array>
+        </property>
+        <property name="concurrent" value="false"/>
+    </bean>
+
+    <bean id="cms.ticketCleanerTrigger" class="org.springframework.scheduling.quartz.SimpleTriggerFactoryBean">
+        <property name="startDelay" value="${cms.profile.auth.ticket.cleaner.startDelay}"/>
+        <property name="repeatInterval" value="${cms.profile.auth.ticket.cleaner.repeatInterval}"/>
+        <property name="jobDetail" ref="cms.ticketCleanerJobDetail"/>
+    </bean>
+
+    <bean id="cms.verificationTokenCleanerTrigger"
+          class="org.springframework.scheduling.quartz.SimpleTriggerFactoryBean">
+        <property name="startDelay" value="${cms.profile.verification.token.cleaner.startDelay}"/>
+        <property name="repeatInterval" value="${cms.profile.verification.token.cleaner.repeatInterval}"/>
+        <property name="jobDetail" ref="cms.verificationTokenCleanerJobDetail"/>
+    </bean>
+
+    <bean id="cms.persistentLoginCleanerTrigger"
+          class="org.springframework.scheduling.quartz.SimpleTriggerFactoryBean">
+        <property name="startDelay" value="${cms.profile.persistentLogin.cleaner.startDelay}"/>
+        <property name="repeatInterval" value="${cms.profile.persistentLogin.cleaner.repeatInterval}"/>
+        <property name="jobDetail" ref="cms.persistentLoginCleanerJobDetail"/>
+    </bean>
+
+    <bean id="cms.schedulerFactoryBean" class="org.springframework.scheduling.quartz.SchedulerFactoryBean">
+        <property name="triggers">
+            <list>
+                <ref bean="cms.ticketCleanerTrigger"/>
+                <ref bean="cms.verificationTokenCleanerTrigger"/>
+                <ref bean="cms.persistentLoginCleanerTrigger"/>
+            </list>
+        </property>
+    </bean>
+
+    <bean id="multipartResolver"
+          class="org.springframework.web.multipart.commons.CommonsMultipartResolver">
+        <property name="maxUploadSize" value="${cms.profile.attachments.maxSizeUpload}"/>
+        <property name="maxInMemorySize" value="${cms.profile.attachments.maxSizeMem}"/>
+    </bean>
+
+    <!-- Entitlements -->
+    <bean id="cms.entitlementsProvider" class="ru.dc.cms.profile.entitlement.ProfileLicenseUsageProvider">
+        <property name="tenantRepository" ref="cms.tenantRepository"/>
+        <property name="profileRepository" ref="cms.profileRepository"/>
+    </bean>
+
+    <import resource="classpath*:cms/profile/extension/services-context.xml"/>
+    <import resource="classpath:cms/entitlements/entitlements-context.xml"/>
+
+</beans>

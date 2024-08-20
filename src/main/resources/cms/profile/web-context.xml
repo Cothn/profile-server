@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright (C) 2007-2022 CMS Software Corporation. All Rights Reserved.
+  ~
+  ~ This program is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License version 3 as published by
+  ~ the Free Software Foundation.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU General Public License
+  ~ along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  -->
+
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:mvc="http://www.springframework.org/schema/mvc"
+       xsi:schemaLocation="
+       http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+       http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc.xsd">
+
+    <!--
+    Activates various annotations to be detected in bean classes: Spring's @Required and @Autowired, as well as JSR
+    250's @Resource (if available), JAX-WS's @WebServiceRef (if available), EJB3's @EJB
+    (if available), and JPA's @PersistenceContext and @PersistenceUnit (if available).
+    -->
+    <context:annotation-config/>
+
+    <mvc:annotation-driven content-negotiation-manager="cms.contentNegotiationManager">
+        <mvc:path-matching suffix-pattern="true"/>
+        <mvc:message-converters>
+            <bean class="ru.dc.cms.commons.jackson.mvc.CMSJackson2MessageConverter">
+                <property name="objectMapper" ref="cms.objectMapper"/>
+                <property name="filter" ref="cms.jacksonFilterProvider"/>
+            </bean>
+        </mvc:message-converters>
+    </mvc:annotation-driven>
+
+    <bean class="org.springframework.context.support.PropertySourcesPlaceholderConfigurer">
+        <property name="ignoreUnresolvablePlaceholders" value="true"/>
+        <property name="locations">
+            <list>
+                <value>classpath:cms/profile/server-config.properties</value>
+                <value>classpath*:cms/profile/extension/server-config.properties</value>
+            </list>
+        </property>
+    </bean>
+
+    <bean id="cms.contentNegotiationManager"
+          class="org.springframework.web.accept.ContentNegotiationManagerFactoryBean">
+        <property name="favorPathExtension" value="true"/>
+        <property name="defaultContentType" value="application/json"/>
+        <property name="mediaTypes">
+            <map>
+                <entry key="xml" value="application/xml"/>
+                <entry key="json" value="application/json"/>
+            </map>
+        </property>
+    </bean>
+
+    <mvc:interceptors>
+        <ref bean="cms.accessTokenCheckingInterceptor"/>
+    </mvc:interceptors>
+    
+    <bean id="cms.accessTokenCheckingInterceptor"
+          class="ru.dc.cms.profile.interceptors.AccessTokenCheckingInterceptor">
+        <property name="accessTokenRepository" ref="cms.accessTokenRepository"/>
+        <property name="urlsToInclude" value="/api/1/.*"/>
+        <property name="urlsToExclude" value="/api/1/monitoring/.*"/>
+    </bean>
+
+    <!-- Jackson config -->
+
+    <bean id="cms.jacksonFilterProvider" class="ru.dc.cms.commons.jackson.mvc.SelectorFilterFactory">
+        <property name="filters">
+            <list>
+               <ref bean="gdata"/>
+            </list>
+        </property>
+    </bean>
+
+    <bean id="gdata" class="ru.dc.cms.commons.jackson.mvc.GDataPropertyFilter">
+        <property name="selectorParameterName" value="selector"/>
+    </bean>
+    
+    <bean id="cms.jacksonAnnotationIntrospector"
+          class="ru.dc.cms.commons.jackson.mvc.CMSJacksonAnnotationIntrospector">
+        <property name="defaultFilter" value="gdata"/>
+    </bean>
+
+    <bean id="cms.objectMapper" class="ru.dc.cms.commons.jackson.CustomSerializationObjectMapper">
+        <property name="filterProvider">
+            <bean class="com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider">
+                <property name="defaultFilter" ref="gdata"/>
+            </bean>
+        </property>
+
+        <property name="serializers">
+            <list>
+                <bean class="ru.dc.cms.commons.jackson.ObjectIdSerializer"/>
+            </list>
+        </property>
+        <property name="deserializers">
+            <map>
+                <entry key="org.bson.types.ObjectId">
+                    <bean class="ru.dc.cms.commons.jackson.ObjectIdDeserializer"/>
+                </entry>
+            </map>
+        </property>
+        <property name="annotationIntrospector" ref="cms.jacksonAnnotationIntrospector"/>
+    </bean>
+
+    <!-- Controllers -->
+
+    <bean id="cms.exceptionHandlers" class="ru.dc.cms.profile.controllers.rest.ExceptionHandlers"/>
+
+    <bean id="cms.accessTokenController"
+          class="ru.dc.cms.profile.controllers.rest.AccessTokenController">
+        <property name="accessTokenService" ref="cms.accessTokenService"/>
+    </bean>
+
+    <bean id="cms.tenantController" class="ru.dc.cms.profile.controllers.rest.TenantController">
+        <property name="tenantService" ref="cms.tenantService"/>
+    </bean>
+
+    <bean id="cms.profileController" class="ru.dc.cms.profile.controllers.rest.ProfileController">
+        <property name="profileService" ref="cms.profileService"/>
+        <property name="objectMapper" ref="cms.objectMapper"/>
+    </bean>
+
+    <bean id="cms.authenticationController"
+          class="ru.dc.cms.profile.controllers.rest.AuthenticationController">
+        <property name="authenticationService" ref="cms.authenticationService"/>
+    </bean>
+
+    <bean id="cms.monioringController" class="ru.dc.cms.profile.controllers.rest.MonitoringController">
+        <constructor-arg name="authorizationToken" value="${cms.profile.management.authorizationToken}"/>
+    </bean>
+
+    <!--bean id="freemarkerConfig" class="org.springframework.web.servlet.view.freemarker.FreeMarkerConfigurer">
+        <property name="templateLoaderPaths" value="classpath:/views/"/>
+    </bean>
+
+    <bean id="viewResolver" class="org.springframework.web.servlet.view.freemarker.FreeMarkerViewResolver">
+        <property name="cache" value="true"/>
+        <property name="prefix" value=""/>
+        <property name="suffix" value=".ftl"/>
+    </bean>
+
+    <import resource="classpath:cms/api-documentation/api-documentation-context.xml"/-->
+
+    <import resource="classpath*:cms/profile/extension/web-context.xml"/>
+
+</beans>
