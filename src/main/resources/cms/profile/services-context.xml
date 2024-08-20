@@ -123,8 +123,6 @@
     <bean id="cms.mongoInitScriptRunner" class="ru.dc.cms.commons.mongo.MongoScriptRunner">
         <property name="mongo" ref="cms.profile.mongoClient"/>
         <property name="dbName" value="${cms.profile.mongodb.connection.dbName}"/>
-        <property name="username" value="${cms.profile.mongodb.connection.dbUsername}"/>
-        <property name="password" value="${cms.profile.mongodb.connection.dbPassword}"/>
         <property name="runOnInit" value="${cms.profile.mongodb.scripts.runOnInit}"/>
         <property name="mongoClientBin" value="${cms.profile.mongodb.connection.scriptRunner.clientPath}"/>
         <property name="connectionStr" value="${cms.profile.mongodb.connection.newConnectionStr}"/>
