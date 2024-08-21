@@ -120,18 +120,15 @@
           class="ru.dc.cms.profile.repositories.impl.PersistentLoginRepositoryImpl"
           parent="cms.jongoRepositoryBase"/>
 
-    <bean id="cms.mongoInitScriptRunner" class="ru.dc.cms.commons.mongo.MongoScriptRunner">
+    <bean id="cms.mongoInitialResourcesRunner" class="ru.dc.cms.profile.tasks.InitialResourcesRunner">
         <property name="mongo" ref="cms.profile.mongoClient"/>
         <property name="dbName" value="${cms.profile.mongodb.connection.dbName}"/>
         <property name="username" value="${cms.profile.mongodb.connection.dbUsername}"/>
         <property name="password" value="${cms.profile.mongodb.connection.dbPassword}"/>
-        <property name="runOnInit" value="${cms.profile.mongodb.scripts.runOnInit}"/>
-        <property name="mongoClientBin" value="${cms.profile.mongodb.connection.scriptRunner.clientPath}"/>
-        <property name="connectionStr" value="${cms.profile.mongodb.connection.newConnectionStr}"/>
-        <property name="useMongoClient" value="${cms.profile.mongodb.connection.scriptRunner.withClient}"/>
-        <property name="scriptPaths">
+        <property name="runOnInit" value="${cms.profile.mongodb.resources.runOnInit}"/>
+        <property name="resourcesPaths">
             <bean class="org.apache.commons.lang3.StringUtils" factory-method="split">
-                <constructor-arg index="0" value="${cms.profile.mongodb.scripts.paths}"/>
+                <constructor-arg index="0" value="${cms.profile.mongodb.resources.paths}"/>
                 <constructor-arg index="1" value=","/>
             </bean>
         </property>

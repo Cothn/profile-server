@@ -23,7 +23,7 @@
     <artifactId>profile</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <name>profile</name>
-    <description>DC profile server</description>
+    <description>CMS Profile Server</description>
 
     <packaging>war</packaging>
 
@@ -43,6 +43,20 @@
             <groupId>ru.dc.cms</groupId>
             <artifactId>mongo</artifactId>
             <version>${project.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.fasterxml.jackson.core</groupId>
+                    <artifactId>jackson-annotations</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.fasterxml.jackson.core</groupId>
+                    <artifactId>jackson-core</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.fasterxml.jackson.core</groupId>
+                    <artifactId>jackson-databind</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>ru.dc.cms</groupId>
