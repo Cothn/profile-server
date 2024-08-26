@@ -334,6 +334,9 @@ public class ProfileServiceImpl implements ProfileService {
 
     @SuppressWarnings("unchecked")
     protected Object escapeValue(Object value, String type) {
+        if (value == null) {
+            return null;
+        }
         switch (type) {
             case ATTRIBUTE_TYPE_TEXT:
             case ATTRIBUTE_TYPE_LARGE_TEXT:
