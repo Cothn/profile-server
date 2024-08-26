@@ -1,19 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-  ~ Copyright (C) 2007-2022 CMS Software Corporation. All Rights Reserved.
-  ~
-  ~ This program is free software: you can redistribute it and/or modify
-  ~ it under the terms of the GNU General Public License version 3 as published by
-  ~ the Free Software Foundation.
-  ~
-  ~ This program is distributed in the hope that it will be useful,
-  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
-  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  ~ GNU General Public License for more details.
-  ~
-  ~ You should have received a copy of the GNU General Public License
-  ~ along with this program.  If not, see <http://www.gnu.org/licenses/>.
-  -->
+<!-- Copyright (C) 2022-2024 Digital Chief Company. All Rights Reserved. -->
 
 <beans xmlns="http://www.springframework.org/schema/beans"
        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -52,26 +38,6 @@
             </list>
         </property>
     </bean>
-
-    <!-- Mongo -->
-
-    <!--<bean id="cms.mongoClientOptionsFactory" class="ru.dc.cms.commons.mongo.MongoClientOptionsFactory">-->
-    <!--<property name="autoConnectRetry" value="${cms.profile.mongodb.connection.autoConnectRetry}"/>-->
-    <!--<property name="connectionsPerHost" value="${cms.profile.mongodb.connection.connectionsPerHost}"/>-->
-    <!--<property name="maxAutoConnectRetryTime" value="${cms.profile.mongodb.connection.maxWaitTime}"/>-->
-    <!--<property name="socketKeepAlive" value="${cms.profile.mongodb.connection.socketKeepAlive}"/>-->
-    <!--<property name="threadsAllowedToBlockForConnectionMultiplier"-->
-    <!--value="${cms.profile.mongodb.connection.threadsAllowedToBlockForConnectionMultiplier}"/>-->
-    <!--<property name="connectTimeout" value="${cms.profile.mongodb.connection.connectTimeout}"/>-->
-    <!--<property name="writeConcern" value="${cms.profile.mongodb.connection.writeConcern}"/>-->
-    <!--<property name="readPreference" value="${cms.profile.mongodb.connection.readPreference}"/>-->
-    <!--</bean>-->
-
-
-    <!--<bean id="cms.profile.mongoClient" class="ru.dc.cms.commons.mongo.MongoClientFactory">-->
-    <!--<property name="connectionString" value="${cms.profile.mongodb.connection.connectionStr}"/>-->
-    <!--<property name="options" ref="cms.mongoClientOptionsFactory"/>-->
-    <!--</bean>-->
 
     <bean id="cms.profile.mongoClient" class="ru.dc.cms.commons.mongo.MongoClientFromUriFactoryBean">
         <property name="uri" value="${cms.profile.mongodb.connection.newConnectionStr}"/>
